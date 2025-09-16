@@ -41,7 +41,7 @@ export default function Topbar({ title, toggleSidebar, sidebarOpen, email , role
   const sendOtp = async () => {
     setStep("sending");
     try {
-      const res = await fetch("/api/change-password", {
+      const res = await fetch("/api/auth/change-password", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email, action: "send_otp" }),
@@ -65,7 +65,7 @@ export default function Topbar({ title, toggleSidebar, sidebarOpen, email , role
     setStep("verifying");
 
     try {
-      const res = await fetch("/api/change-password", {
+      const res = await fetch("/api/auth/change-password", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email, otp, action: "verify_otp" }),
@@ -92,7 +92,7 @@ export default function Topbar({ title, toggleSidebar, sidebarOpen, email , role
     }
 
     try {
-      const res = await fetch("/api/change-password", {
+      const res = await fetch("/api/auth/change-password", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({

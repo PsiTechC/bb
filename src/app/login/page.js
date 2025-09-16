@@ -12,7 +12,7 @@ export default function LoginPage() {
   const router = useRouter();
 
   useEffect(() => {
-    fetch("/api/verify-token")
+    fetch("/api/auth/verify-token")
       .then((res) => {
         if (!res.ok) throw new Error("Unauthorized");
         return res.json();
@@ -36,7 +36,7 @@ export default function LoginPage() {
   const handleSubmit = async (e) => {
     e.preventDefault();
   
-    const res = await fetch("/api/login", {
+    const res = await fetch("/api/auth/login", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ email, password }),
@@ -51,7 +51,7 @@ export default function LoginPage() {
 
       setTimeout(async () => {
         try {
-          const verifyRes = await fetch("/api/verify-token");
+          const verifyRes = await fetch("/api/auth/verify-token");
           if (!verifyRes.ok) throw new Error("Unauthorized");
           const verifyData = await verifyRes.json();
   

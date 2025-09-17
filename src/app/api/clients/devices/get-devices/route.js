@@ -19,14 +19,20 @@ async function getDevicesByClient(req) {
     const mappings = await db
       .collection("client-device-mapping")
       .find({ clientEmail: email })
-      .project({ deviceName: 1 }) // include deviceName, keep _id
+      .project({ deviceObjId: 1, deviceId: 1, deviceName: 1 })
       .toArray();
 
     client.close();
 
-    // Response: array of { _id, deviceName }
+    // Transform deviceObjId → _id in the response
+    const devices = mappings.map((m) => ({
+      _id: m.deviceObjId,  // ✅ send deviceObjId as _id
+      deviceId: m.deviceId,
+      deviceName: m.deviceName,
+    }));
+
     return new Response(
-      JSON.stringify({ devices: mappings }),
+      JSON.stringify({ devices }),
       { status: 200, headers: { "Content-Type": "application/json" } }
     );
   } catch (err) {

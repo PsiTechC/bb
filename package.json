@@ -4,8 +4,10 @@
   "private": true,
   "scripts": {
     "dev": "next dev -p 3005",
+    "dev:all": "concurrently \"npm run dev\" \"npm run watch-whatsapp\"",
     "build": "next build",
-    "start": "next start -p 3005",
+    "start": "concurrently -k -s first -n WEB,WS -c blue,magenta \"npm run start:web\" \"npm run watch-whatsapp\"",
+    "watch-whatsapp": "node lib/mqtt/watch-whatsappresponses.js",
     "lint": "eslint"
   },
   "dependencies": {
@@ -26,6 +28,7 @@
   "devDependencies": {
     "@eslint/eslintrc": "^3",
     "@tailwindcss/postcss": "^4",
+    "concurrently": "^9.2.1",
     "eslint": "^9",
     "eslint-config-next": "15.5.2",
     "tailwindcss": "^4"

@@ -1,17 +1,10 @@
 import { MongoClient } from "mongodb";
 import { withCORS } from "../../../../middleware/cors";
-const { sendWhatsAppTemplateMessage } = require("../../../../../../lib/mqtt/ws");
+import { sendWhatsAppInvitation } from "../../../../../../lib/whatsapp/gate-operation";
 
 async function addCustomer(req) {
   try {
-    const { phoneNumber, customerName, clientEmail, deviceNames } = await req.json();
-
-    // optional deviceNames logging (array or string)
-    const names = Array.isArray(deviceNames)
-      ? deviceNames
-      : deviceNames
-      ? [deviceNames]
-      : [];
+    const { phoneNumber, customerName, clientEmail } = await req.json();
 
     if (!phoneNumber || !customerName || !clientEmail) {
       return new Response(
@@ -25,7 +18,7 @@ async function addCustomer(req) {
     const client = await MongoClient.connect(process.env.MONGO_URI);
     const db = client.db("bb");
 
-    // prevent duplicate customer (per client)
+    // ✅ Prevent duplicate customer for the same client by phone number
     const existing = await db.collection("customers").findOne({
       phoneNumber,
       clientEmail,
@@ -39,7 +32,19 @@ async function addCustomer(req) {
       );
     }
 
-    // insert new customer
+    // ✅ Step 1: Send WhatsApp invitation before saving
+    try {
+      await sendWhatsAppInvitation(phoneNumber, customerName);
+    } catch (err) {
+      client.close();
+      console.error("❌ Failed to send WhatsApp invitation:", err.message);
+      return new Response(
+        JSON.stringify({ message: "Failed to send WhatsApp invitation" }),
+        { status: 502 }
+      );
+    }
+
+    // ✅ Step 2: Insert new customer in DB
     await db.collection("customers").insertOne({
       phoneNumber,
       customerName,
@@ -49,30 +54,19 @@ async function addCustomer(req) {
 
     client.close();
 
-    // fire-and-forget WhatsApp template send with provided device names
-    if (names.length > 0) {
-      (async () => {
-        try {
-          await sendWhatsAppTemplateMessage(phoneNumber, {
-            deviceNames: names,
-            // no deviceIds/action/accessPoint here; template_name will be inferred by count
-          });
-        } catch (e) {
-          console.error("❌ Failed to send WhatsApp (post-add):", e?.message || e);
-        }
-      })();
-    }
-
     return new Response(
       JSON.stringify({ message: "Customer added successfully" }),
       { status: 201 }
     );
   } catch (err) {
     console.error("❌ Error adding customer:", err.message);
-    return new Response(JSON.stringify({ message: "Server error" }), {
-      status: 500,
-    });
+    return new Response(
+      JSON.stringify({ message: "Server error" }),
+      { status: 500 }
+    );
   }
 }
 
 export const POST = withCORS(addCustomer);
+
+

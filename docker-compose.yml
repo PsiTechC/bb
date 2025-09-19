@@ -1,0 +1,12 @@
+version: "3.8"
+services:
+  web:
+    image: psittech/doorsense:v1
+    ports:
+      - "3005:3005"
+    restart: always
+
+  whatsapp-watcher:
+    image: psittech/doorsense:v1
+    command: npm run whatsapp-watcher
+    restart: always

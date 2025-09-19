@@ -1,6 +1,6 @@
 "use client";
 import { useEffect, useState } from "react";
-import { FaPen, FaPlus } from "react-icons/fa";
+import { FaPen, FaPlus, FaTrash } from "react-icons/fa";
 
 export default function DevicesClient({ clientEmail }) {
   const [devices, setDevices] = useState([]);
@@ -13,7 +13,38 @@ export default function DevicesClient({ clientEmail }) {
   const [assignedCustomers, setAssignedCustomers] = useState([]); // customer IDs
   const [mappedCustomers, setMappedCustomers] = useState([]); // already mapped customers
 
-  // 🔹 Fetch devices
+
+// 🔹 Remove mapped customer
+const handleRemoveMappedCustomer = async (customer) => {
+  if (!customer.customerId) {
+    alert("❌ Customer ID missing");
+    return;
+  }
+
+  try {
+    const res = await fetch("/api/clients/devices/get-customers-by-device", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        action: "remove",
+        _id: customer._id,
+      }),
+    });
+
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.message || "Failed to remove customer");
+    }
+
+    console.log(`✅ Removed customer mapping for ${customer.customerName}`);
+    // Refresh customers list after delete
+    await openEditModal(editingDevice);
+  } catch (err) {
+    console.error("❌ Error removing customer:", err.message);
+    alert(err.message || "Error removing customer");
+  }
+};
+
   const fetchDevices = async () => {
     if (!clientEmail) return;
     setLoading(true);
@@ -64,19 +95,15 @@ export default function DevicesClient({ clientEmail }) {
       const res = await fetch("/api/clients/devices/get-customers-by-device", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ deviceId: device._id }),
+        body: JSON.stringify({  action: "get", deviceId: device._id }),
       });
 
       if (!res.ok) throw new Error("Failed to fetch mapped customers");
       const data = await res.json();
 
-      // Already mapped customers (full objects)
-      const mapped = (data.customers || []).map((mc) => ({
-        customerName: mc.customerName,
-        phoneNumber: mc.phoneNumber,
-      }));
 
-      setMappedCustomers(mapped);
+
+      setMappedCustomers(data.customers || []);
 
       // For new assignment dropdowns
       setAssignedCustomers([""]);
@@ -101,56 +128,60 @@ export default function DevicesClient({ clientEmail }) {
     setAssignedCustomers(updated);
   };
 
-  // 🔹 Save changes
+  // 🔹 Save changes (uses single unified endpoint)
   const handleSave = async () => {
     if (!editingDevice) return;
 
     try {
-      // Update device name if changed
-      if (editedName !== editingDevice.deviceName) {
-        const res = await fetch("/api/clients/devices/update-device-name", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            _id: editingDevice._id,
-            newName: editedName,
-          }),
-        });
-        
-        if (!res.ok) throw new Error("Failed to update device name");
+      // collect what changed
+      const payload = {
+        deviceId: editingDevice.deviceId, // e.g. "NODE004"
+        clientEmail,
+      };
+
+      // include new name only if changed
+      if (editedName && editedName.trim() !== editingDevice.deviceName) {
+        payload.newName = editedName.trim();
       }
 
-      // Get phones of selected customers
+      // include customers (as phone numbers) only if any selected
       const selectedPhones = assignedCustomers
-        .filter((custId) => custId)
-        .map((custId) => {
-          const cust = customers.find((c) => c._id === custId);
-          return cust?.phoneNumber;
-        })
+        .filter(Boolean)
+        .map((custId) => customers.find((c) => c._id === custId)?.phoneNumber)
         .filter(Boolean);
 
       if (selectedPhones.length > 0) {
-        const mapRes = await fetch("/api/clients/devices/mapp-device", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            deviceId: editingDevice.deviceId, // NODE004
-            customers: selectedPhones,
-            clientEmail,
-          }),
-        });
-
-        if (!mapRes.ok) throw new Error("Failed to map customers to device");
+        payload.customers = selectedPhones;
       }
 
+      // if nothing to do, just close
+      if (!payload.newName && !payload.customers) {
+        setIsModalOpen(false);
+        setEditingDevice(null);
+        return;
+      }
+
+      const res = await fetch("/api/clients/devices/mapp-device", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.message || "Failed to save changes");
+      }
+
+      // refresh + close
       await fetchDevices();
       setIsModalOpen(false);
       setEditingDevice(null);
     } catch (err) {
       console.error("❌ Error saving device changes:", err.message);
-      alert("Error saving device changes");
+      alert(err.message || "Error saving device changes");
     }
   };
+
 
   // Remaining customers (not already mapped)
   const availableCustomers = customers.filter(
@@ -212,14 +243,27 @@ export default function DevicesClient({ clientEmail }) {
                   <label className="block text-sm font-medium text-gray-700 mb-2">
                     Already Assigned Customers
                   </label>
-                  {mappedCustomers.map((mc, idx) => (
-                    <p
-                      key={idx}
-                      className="text-sm text-gray-800 bg-gray-100 px-3 py-1 rounded mb-1"
-                    >
-                      {mc.customerName} ({mc.phoneNumber})
-                    </p>
-                  ))}
+                  {mappedCustomers.length > 0 && (
+                    <div>
+                      {mappedCustomers.map((mc, idx) => (
+                        <div
+                          key={idx}
+                          className="flex items-center justify-between text-sm text-gray-800 bg-gray-100 px-3 py-1 rounded mb-1"
+                        >
+                          <span>
+                            {mc.customerName} ({mc.phoneNumber})
+                          </span>
+                          <button
+                            onClick={() => handleRemoveMappedCustomer(mc)}
+                            className="text-red-500 hover:text-red-700 ml-2"
+                            title="Remove Customer"
+                          >
+                            <FaTrash size={14} />
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
               )}
 
@@ -245,11 +289,10 @@ export default function DevicesClient({ clientEmail }) {
               <button
                 onClick={!noMoreCustomers ? addCustomerDropdown : undefined}
                 disabled={noMoreCustomers}
-                className={`flex items-center text-sm mt-1 px-2 py-1 rounded ${
-                  noMoreCustomers
+                className={`flex items-center text-sm mt-1 px-2 py-1 rounded ${noMoreCustomers
                     ? "text-gray-400 cursor-not-allowed"
                     : "text-indigo-600 hover:text-indigo-800"
-                }`}
+                  }`}
                 title={noMoreCustomers ? "No more customers" : "Add another customer"}
               >
                 <FaPlus className="mr-1" /> Add Another Customer

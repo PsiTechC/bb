@@ -95,7 +95,6 @@ export default function ManageClientsClient({ clientEmail }) {
     }
   };
 
-  // Add Customer, then (optionally) map to selected devices
 // Add Customer, then (optionally) map to selected devices
 const handleAddCustomer = async () => {
   if (!customerName || !phoneNumber) {
@@ -105,12 +104,15 @@ const handleAddCustomer = async () => {
 
   setLoading(true);
   try {
-    // 👉 derive selected device names from selectedDeviceIds
-    const selectedDeviceNames = selectedDeviceIds
-      .map(id => devices.find(d => d.deviceId === id)?.deviceName)
+    // 👉 Build array of { deviceId, deviceName } from selectedDeviceIds
+    const selectedDevices = selectedDeviceIds
+      .map(id => {
+        const d = devices.find(dev => dev.deviceId === id);
+        return d ? { deviceId: d.deviceId, deviceName: d.deviceName } : null;
+      })
       .filter(Boolean);
 
-    // 1) Add customer (now also sending deviceNames)
+    // 1) Add customer (now sending device objects instead of just names)
     const res = await fetch("/api/clients/customer/add-customer", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -119,7 +121,7 @@ const handleAddCustomer = async () => {
         customerName,
         phoneNumber,
         clientEmail,
-        deviceNames: selectedDeviceNames,   // 👈 send selected device names
+        devices: selectedDevices,   // 👈 send deviceId + deviceName array
       }),
     });
 
@@ -137,7 +139,10 @@ const handleAddCustomer = async () => {
       );
       const failures = results.filter(r => r.status === "rejected");
       if (failures.length > 0) {
-        console.error("⚠️ Some mappings failed:", failures.map(f => f.reason?.message || f.reason));
+        console.error(
+          "⚠️ Some mappings failed:",
+          failures.map(f => f.reason?.message || f.reason)
+        );
         alert("Customer added, but mapping to one or more devices failed.");
       }
     }

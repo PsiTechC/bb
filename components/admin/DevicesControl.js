@@ -34,8 +34,8 @@ export default function DevicesControl() {
   const openModal = () => {
     const nextNumber = devices.length + 1;
     const formattedNumber = String(nextNumber).padStart(3, "0"); // 001, 002...
-    setDeviceId(`NODE${formattedNumber}`);
-    setDeviceName(`NODE${formattedNumber}`);
+    setDeviceId(`DS00${formattedNumber}`);
+    setDeviceName(`DS00${formattedNumber}`);
     setDescription("");
     setIsModalOpen(true);
   };
@@ -92,8 +92,8 @@ export default function DevicesControl() {
           {devices
             .sort((a, b) => {
               // Extract number from deviceId like NODE001 → 1
-              const numA = parseInt(a.deviceId.replace("NODE", ""), 10);
-              const numB = parseInt(b.deviceId.replace("NODE", ""), 10);
+              const numA = parseInt(a.deviceId.replace("DS00", ""), 10);
+              const numB = parseInt(b.deviceId.replace("DS00", ""), 10);
               return numA - numB;
             })
             .map((device) => (
@@ -112,7 +112,7 @@ export default function DevicesControl() {
             </h2>
 
             <div className="space-y-4">
-              <div>
+              {/* <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
                   Device ID
                 </label>
@@ -123,7 +123,7 @@ export default function DevicesControl() {
                   className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-indigo-400"
                   placeholder="Enter unique device ID"
                 />
-              </div>
+              </div> */}
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">

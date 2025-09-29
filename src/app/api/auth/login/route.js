@@ -16,13 +16,14 @@ async function handleLogin(request) {
       process.env.JWT_SECRET,
       { expiresIn: "1d" }
     );
-
+    
     const response = new Response(JSON.stringify({ message: "Login successful" }), { status: 200 });
     response.headers.set(
       "Set-Cookie",
       `token=${token}; HttpOnly; Path=/; Max-Age=86400; SameSite=Strict`
     );
 
+    
     return response;
   }
 

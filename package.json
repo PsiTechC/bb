@@ -6,8 +6,9 @@
     "dev": "next dev -p 3005",
     "dev:all": "concurrently \"npm run dev\" \"npm run watch-whatsapp\"",
     "build": "next build",
-    "start": "concurrently -k -s first -n WEB,WS -c blue,magenta \"npm run start:web\" \"npm run watch-whatsapp\"",
+    "start:web": "next start -p 3005",
     "watch-whatsapp": "node lib/mqtt/watch-whatsappresponses.js",
+    "start": "concurrently -k -s first -n WEB,WS -c blue,magenta \"npm run start:web\" \"npm run watch-whatsapp\"",
     "lint": "eslint"
   },
   "dependencies": {
